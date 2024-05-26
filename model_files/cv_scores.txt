@@ -1,0 +1,2 @@
+  roc_auc_score: 0.77 ± 0.005
+precision_score: 0.75 ± 0.009

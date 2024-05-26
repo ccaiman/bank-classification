@@ -1,0 +1,193 @@
+---
+title: Classify term subscription with banking data
+format: dashboard
+engine: jupyter
+server: shiny
+---
+
+```{python}
+#| context: setup
+
+from shiny import reactive
+from shiny.express import render, ui
+import pandas as pd
+import joblib
+import skops.io as sio
+
+pipeline_num = joblib.load('./model_files/pipeline_num.save')
+unknown_types = sio.get_untrusted_types(file='./model_files/model.skops')
+model = sio.load('./model_files/model.skops', trusted=unknown_types)
+
+#option1 = ['red', 'blue', 'green']
+#option2 = ['apple', 'mango', 'banana']
+job_choice = ['blue-collar', 'management', 'technician', 'admin.', 'services',
+         'retired', 'self-employed', 'entrepreneur', 'unemployed',
+         'housemaid', 'student', 'nan']
+marital_choice = ['married', 'single', 'divorced']
+education_choice = ['secondary', 'tertiary', 'primary', 'nan']
+default_choice = ['no', 'yes']
+housing_choice = ['no', 'yes']
+loan_choice = ['no', 'yes']
+contact_choice = ['cellular', 'telephone']
+month_choice = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep',
+         'oct', 'nov', 'dec']
+
+job_choicex = job_choice.copy()
+marital_choicex = marital_choice.copy()
+education_choicex = education_choice.copy()
+default_choicex = default_choice.copy()
+housing_choicex = housing_choice.copy()
+loan_choicex = loan_choice.copy()
+contact_choicex = contact_choice.copy()
+month_choicex = month_choice.copy()
+
+option_list = [job_choicex, marital_choicex, education_choicex, default_choicex, housing_choicex, loan_choicex, contact_choicex, month_choicex]
+remove_option_list = ['admin.', 'divorced', 'primary', 'no', 'no', 'no', 'cellular', 'apr']
+
+for i, x in zip(option_list, remove_option_list):
+    i.remove(x)
+    i.sort()
+
+labels = {0: 'No', 1: 'Yes'}
+
+```
+
+## {.sidebar}
+```{python}
+
+ui.input_numeric('age', 'Age: ', value=40, min=0, max=100, step=1)
+ui.input_numeric('balance', 'Balance: ', value=1000, min=-10000, max=110000, step=1)
+ui.input_numeric('campaign', 'Number of contacts during campaign: ', value=10, min=0, max=70, step=1)
+ui.input_numeric('pdays', 'Days since last contact: ', value=-1, min=-1, max=900, step=1)
+ui.input_numeric('previous', 'Number of contacts before campaign: ', value=1, min=0, max=275, step=1)
+ui.input_select('job', 'Job:', choices=job_choice)
+ui.input_select('marital', 'Marital status:', choices=marital_choice)
+ui.input_select('education', 'Education:', choices=education_choice)
+ui.input_select('default', 'Default:', choices=default_choice)
+ui.input_select('housing', 'Housing:', choices=housing_choice)
+ui.input_select('loan', 'Loan:', choices=loan_choice)
+ui.input_select('contact', 'Contact:', choices=contact_choice)
+ui.input_numeric('day_of_week', 'Last contact day in month: ', value=15, min=1, max=31, step=1)
+ui.input_select('month', 'Last contact month:', choices=month_choice)
+
+@reactive.calc
+def X_in():
+    data = pd.DataFrame({
+        'job': input.job(),
+        'marital': input.marital(),
+        'education': input.education(),
+        'default': input.default(),
+        'housing': input.housing(),
+        'loan': input.loan(),
+        'contact': input.contact(),
+        'month': input.month()
+        },
+        index=[0])
+    return data
+
+@reactive.calc
+def X_process():
+
+    #categorical data
+    cols = pd.concat([
+    pd.Series(['job_' + x for x in job_choicex]),
+    pd.Series(['marital_' + x for x in marital_choicex]),
+    pd.Series(['education_' + x for x in education_choicex]),
+    pd.Series(['default_' + x for x in default_choicex]),
+    pd.Series(['housing_' + x for x in housing_choicex]),
+    pd.Series(['loan_' + x for x in loan_choicex]),
+    pd.Series(['contact_' + x for x in contact_choicex]),
+    pd.Series(['month_' + x for x in month_choicex])
+    ])
+
+    cat_inp = [
+        input.job(), 
+        input.marital(), 
+        input.education(),
+        input.default(),
+        input.housing(),
+        input.loan(),
+        input.contact(),
+        input.month()
+        ]
+
+    data = pd.DataFrame({x: 0 for x in cols}, index=[0])
+
+    for i in cat_inp:
+        change_col = cols[cols.str.contains(i)]
+        data[change_col] = 1
+
+    #numeric data
+    num_data = pd.DataFrame({
+        'age': input.age(),
+        'balance': input.balance(),
+        'day_of_week': input.day_of_week(),
+        'campaign': input.campaign(),
+        'pdays': input.pdays(),
+        'previous': input.previous()
+    }, index=[0])
+
+    num_data = pipeline_num.transform(num_data)
+    num_data = pd.DataFrame(data=num_data, columns=['age', 'balance', 'day_of_week', 'campaign', 'pdays', 'previous'])
+
+    data = pd.concat([num_data, data], axis=1)
+    
+    return data
+```
+
+## Column {width='60%'}
+
+### Row {height='30%'}
+
+```{python}
+#| title: Input
+
+@render.data_frame
+def dataprocess():
+    X = X_process()
+    return render.DataTable(
+        X,
+        height='110px'
+    )
+
+```
+
+### Row {height='25%'}
+
+```{python}
+#| title: Output
+
+@render.text
+def text():
+    X = X_process()
+    pred = model.predict(X)[0]
+    if pred == 1:
+        prob = model.predict_proba(X).flatten()[1]
+    else:
+        prob = model.predict_proba(X).flatten()[0]
+
+    return "Model predicts '{}' with {:.2f} probability.".format(labels[pred], prob)
+
+
+```
+
+### Row {}
+
+```{python}
+#| output: asis
+#| title: About
+
+print("Read about the dataset [here](https://archive.ics.uci.edu/dataset/222/bank+marketing).")
+print("Read about my machine learning project here.")
+```
+
+## Column {}
+
+```{python}
+#| title: Model info
+
+file_report = open("./model_files/classification_report.txt", "r")
+content = file_report.read()
+print(content)
+file_report.close()
+```
