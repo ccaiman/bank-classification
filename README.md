@@ -18,24 +18,24 @@ The data in this scenario is the [bank marketing](https://archive.ics.uci.edu/da
 ## Methods
 
 ### 1. Exploratory data analysis (EDA)
-EDA included descriptive statistics of features, histograms for numeric features, bar chaarts for categorical features, and analysis of missing values.
+EDA included descriptive statistics of features, histograms for numeric features, bar charts for categorical features, and analysis of missing values.
 
 ### 2. Data cleaning and preprocessing
 Based on EDA and documentation, I removed columns and then rows with multiple missing values. I scaled numeric features and one-hot-encoded categorical features. I used KNN to impute remaining `Null` values.
 
 ### 3. Model building and assessment
-Base models always had class weight balanced due to imbalance in the target variable (more 'No' than 'Yes' values). I tested sampling methods for imbalanced learning. To assess model performance, I used a train/test/validation split of 70/15/15% for classification reports. I combined the train/test splits and used 5- or 3-fold cross-validation (cv) for ROC-AUC and precision metrics. 
+Base models always had class weight balanced due to an imbalance in the target variable (more 'No' than 'Yes' values). I tested sampling methods for imbalanced learning. To assess model performance, I used a train/test/validation split of 70/15/15% for classification reports. I combined the train/test splits and used 5- or 3-fold cross-validation (cv) for ROC-AUC and precision metrics. 
 
 ### 4. Hyperparameter selection
-I ROC-AUC to select logistic regression parameters and I used log-loss to select parameters for the tree models.
+I used ROC-AUC to select logistic regression parameters and I used log-loss to select parameters for the tree models.
 
 ### 5. Threshold tuning
-Depending on the classification problem, I demonstrated with a logistic-regression model how tuning the decision threshold biases predictions for precision (accurate predictions but missed true cases) versus recall (less accurate predictions but no missed true cases).
+Depending on the classification problem, I used a logistic-regression model to demonstrate how tuning the decision threshold biases predictions for precision (accurate predictions but missed true cases) versus recall (less accurate predictions but no missed true cases).
 
 ## Results
-(2.) I dropped `duration` and `poutcome` from the dataset and impurted `contact`. The dataset creators suggest removing `duration`. `poutcome` was mostly null values. Imputing `contact` preserved the existing imbalance that most clients use `cellular` devices compared to `telephone`.
+(2.) I dropped `duration` and `poutcome` from the dataset and imputed `contact`. The dataset creators suggest removing `duration`. `poutcome` was mostly null values. Imputing `contact` preserved the existing imbalance that most clients use `cellular` devices compared to `telephone`.
 
-(3.) I chose to focus model building on true positive precision, predicting those clients that did subscribe term accounts. Precision improved moving from logistic regression, decision tree, and then to random forest models. Progression along base models resulted in a precision score of ~50%. The models progressively lost recall. The tree models had variance in the precision score indicating that the base model was overfit. 
+(3.) I chose to focus model building on true positive precision (predicting those clients that did subscribe to term accounts). Precision improved moving from logistic regression, decision tree, and then to random forest models. Progression along base models resulted in a precision score of ~50%. The models progressively lost recall. The tree models had variance in the precision score indicating that the base model was overfit. 
 
 (4.) The final random forest model had ~70% accuracy accross all scoring metrics. There was no bias predicting 'No' versus 'Yes'. Precision and recall were similar, too. This model had log-loss scoring in the hyperparameter search and random under sampling to unbias predictions.
 
@@ -49,4 +49,4 @@ With more time and resources, I would:
 - extend the hyperparameter search
 - use oversampling to balance classes, not just under sampling.
 
-Even over a short timeframe, like going from campaign to campaign, there can be changes to the economy that supercede prediction accuracy. In more expensive training capacities this information could be included in the model. With increased computing power, we could also consider information about the term account (length of the term, interest rate, penalties) and whether the client negotiated the conditions.
+Even over a short timeframe, like going from campaign to campaign, there can be changes to the economy that supercede prediction accuracy. More expensive training capacities could include this information in the model. With increased computing power, we could also consider information about the term account (length of the term, interest rate, penalties) and whether the client negotiated the conditions.
