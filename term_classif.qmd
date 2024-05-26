@@ -104,9 +104,9 @@ def X_process():
         input.job(), 
         input.marital(), 
         input.education(),
-        input.default(),
-        input.housing(),
-        input.loan(),
+        'default_' + input.default(),
+        'housing_' + input.housing(),
+        'loan_' + input.loan(),
         input.contact(),
         input.month()
         ]
