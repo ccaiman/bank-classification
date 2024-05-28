@@ -1,0 +1,167 @@
+---
+title: "ML model"
+format: dashboard
+engine: knitr
+server: shiny
+---
+
+```{r}
+#| context: setup
+#| output: false
+
+reticulate::virtualenv_create(envname = "python_environment", python = "3.10")
+reticulate::virtualenv_install("python_environment", packages = c('pandas==1.5.3','numpy==1.24.4','scipy==1.11.2','scikit-learn==1.3.0', 'skops==0.9.0', 'joblib==1.2.0', 'imblearn==0.0'))
+reticulate::use_virtualenv("python_environment", required = TRUE)
+
+library(tidyverse)
+library(reticulate)
+
+source_python("X_process.py")
+source_python("mod_pred.py")
+
+job_choice = c('blue-collar', 'management', 'technician', 'admin.', 'services',
+         'retired', 'self-employed', 'entrepreneur', 'unemployed',
+         'housemaid', 'student', 'nan')
+marital_choice = c('married', 'single', 'divorced')
+education_choice = c('secondary', 'tertiary', 'primary', 'nan')
+default_choice = c('no', 'yes')
+housing_choice = c('no', 'yes')
+loan_choice = c('no', 'yes')
+contact_choice = c('cellular', 'telephone')
+month_choice = c('jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep',
+         'oct', 'nov', 'dec')
+```
+
+
+## {.sidebar}
+
+```{r}
+numericInput('age', 'Age:', value = 40, min = 0, max = 100, step = 1)
+numericInput('balance', 'Balance: ', value = 1000, min = -10000, max = 110000, step = 1)
+numericInput('campaign', 'Number of contacts during campaign: ', value = 10, min = 0, max = 70, step = 1)
+numericInput('pdays', 'Days since last contact: ', value = -1, min = -1, max = 900, step = 1)
+numericInput('previous', 'Number of contacts before campaign: ', value = 1, min = 0, max = 275, step = 1)
+
+selectInput('job', 'Job:', choices = job_choice)
+selectInput('marital', 'Marital status:', choices = marital_choice)
+selectInput('education', 'Education:', choices = education_choice)
+selectInput('default', 'Default:', choices = default_choice)
+selectInput('housing', 'Housing:', choices = housing_choice)
+selectInput('loan', 'Loan:', choices = loan_choice)
+selectInput('contact', 'Contact:', choices = contact_choice)
+numericInput('day_of_week', 'Last contact day in month: ', value = 15, min = 1, max = 31, step = 1)
+selectInput('month', 'Last contact month:', choices = month_choice)
+```
+
+
+## Column {width='60%'}
+
+### Row {height='30%'}
+
+```{r}
+#| title: Input
+
+tableOutput("input")
+
+```
+
+### Row {height='25%'}
+
+```{r}
+#| title: Output
+
+textOutput('pred')
+```
+
+### Row
+
+```{r}
+#| output: asis
+#| title: About
+
+
+print("Read about the dataset [here](https://archive.ics.uci.edu/dataset/222/bank+marketing).")
+print("Read about my machine learning project [here](https://github.com/ccaiman/bank_classification).")
+```
+
+## Column {}
+
+```{python}
+#| title: Model info
+
+file_report = open("./model_files/classification_report.txt", "r")
+content = file_report.read()
+print(content)
+file_report.close()
+```
+
+
+```{r}
+#| context: server
+
+input_data <- reactive({
+  
+  in_list <- c(
+        input$job, 
+        input$marital, 
+        input$education,
+        paste0('default_', input$default),
+        paste0('housing_', input$housing),
+        paste0('loan_', input$loan),
+        input$contact,
+        input$month
+  )
+  
+  num_name = c(
+    "age",
+    "balance",
+    "day_of_week",
+    "campaign",
+    "pdays",
+    "previous"
+  )
+  
+  num_list <- c(
+    input$age,
+    input$balance,
+    input$day_of_week,
+    input$campaign,
+    input$pdays,
+    input$previous
+  )
+  
+  in_num <- tibble(num_name, num_list) |> 
+    pivot_wider(names_from = num_name, values_from = num_list)
+  
+  in_list <- X_process(in_list, in_num)
+  
+  pred <- mod_pred(in_list)
+  
+  return(
+    list(
+      in_list = in_list, 
+      pred = pred
+      )
+    )
+  
+})
+
+
+
+
+output$input <- renderTable({
+  tmp <- input_data()
+  
+  in_tab <- tmp$in_list
+  
+  in_tab
+})
+
+output$pred <- renderText({
+  tmp <- input_data()
+  
+  pred <- tmp$pred
+  
+  pred
+})
+```
